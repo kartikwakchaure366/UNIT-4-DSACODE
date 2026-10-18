@@ -1,120 +1,229 @@
+
 #include <iostream>
+#include <string>
 #include <algorithm>
 using namespace std;
-struct Node {
-    int key, h;
-    Node *left, *right;
 
-    Node(int k) {
-        key = k;
-        h = 1;
-        left = right = NULL;
+struct Node {
+    string word;
+    string meaning;
+    Node* left;
+    Node* right;
+    int height;
+
+    Node(string w, string m) {
+        word = w;
+        meaning = m;
+        left = right = nullptr;
+        height = 1;
     }
 };
-// BST insertion
-Node* insertBST(Node* root, int key) {
-    if (root == NULL)
-        return new Node(key);
-    if (key < root->key)
-        root->left = insertBST(root->left, key);
-    else
-        root->right = insertBST(root->right, key);
-    return root;
-}
-// AVL functions
-int height(Node* n) {
-    return n == NULL ? 0 : n->h;
-}
-void update(Node* n) {
-    n->h = 1 + max(height(n->left), height(n->right));
-}
 
-Node* rightRotate(Node* y) {
-    Node* x = y->left;
-    y->left = x->right;
-    x->right = y;
-    update(y);
-    update(x);
-    return x;
-}
-Node* leftRotate(Node* x) {
-    Node* y = x->right;
-    x->right = y->left;
-    y->left = x;
-    update(x);
-    update(y);
-    return y;
-}
-Node* insertAVL(Node* root, int key) {
-    if (root == NULL)
-        return new Node(key);
-    if (key < root->key)
-        root->left = insertAVL(root->left, key);
-    else if (key > root->key)
-        root->right = insertAVL(root->right, key);
-    else
-        return root;
-    update(root);
-    int balance = height(root->left) - height(root->right);
-    if (balance > 1 && key < root->left->key)
-        return rightRotate(root);
-    if (balance < -1 && key > root->right->key)
-        return leftRotate(root);
-    if (balance > 1 && key > root->left->key) {
-        root->left = leftRotate(root->left);
-        return rightRotate(root);
+class Dictionary {
+private:
+    Node* root;
+    int rotations;
+
+    int height(Node* node) {
+        return (node == nullptr) ? 0 : node->height;
     }
-    if (balance < -1 && key < root->right->key) {
-        root->right = rightRotate(root->right);
-        return leftRotate(root);
+
+    int getBalance(Node* node) {
+        if (node == nullptr)
+            return 0;
+        return height(node->left) - height(node->right);
     }
-    return root;
-}
-// Calculate BST height
-int treeHeight(Node* root) {
-    if (root == NULL)
-       return 0;
-    return 1 + max(treeHeight(root->left),
-                   treeHeight(root->right));
-}
-// Display search path
-void searchPath(Node* root, int key) {
-    Node* curr = root;
-    while (curr != NULL) {
-        cout << curr->key << " ";
-        if (curr->key == key) {
-            cout << "-> Found\n";
+
+    // Right rotation
+    Node* rightRotate(Node* y) {
+        Node* x = y->left;
+        Node* T2 = x->right;
+
+        x->right = y;
+        y->left = T2;
+
+        y->height = 1 + max(height(y->left),
+                            height(y->right));
+        x->height = 1 + max(height(x->left),
+                            height(x->right));
+
+        rotations++;
+        return x;
+    }
+
+    // Left rotation
+    Node* leftRotate(Node* x) {
+        Node* y = x->right;
+        Node* T2 = y->left;
+
+        y->left = x;
+        x->right = T2;
+
+        x->height = 1 + max(height(x->left),
+                            height(x->right));
+        y->height = 1 + max(height(y->left),
+                            height(y->right));
+
+        rotations++;
+        return y;
+    }
+
+    Node* insert(Node* node, string word, string meaning) {
+        // Normal BST insertion
+        if (node == nullptr)
+            return new Node(word, meaning);
+
+        if (word < node->word)
+            node->left = insert(node->left, word, meaning);
+        else if (word > node->word)
+            node->right = insert(node->right, word, meaning);
+        else {
+            // Update meaning if word already exists
+            node->meaning = meaning;
+            return node;
+        }
+
+        // Update height
+        node->height = 1 + max(height(node->left),
+                               height(node->right));
+
+        int balance = getBalance(node);
+
+        // LL case
+        if (balance > 1 && word < node->left->word)
+            return rightRotate(node);
+
+        // RR case
+        if (balance < -1 && word > node->right->word)
+            return leftRotate(node);
+
+        // LR case
+        if (balance > 1 && word > node->left->word) {
+            node->left = leftRotate(node->left);
+            return rightRotate(node);
+        }
+
+        // RL case
+        if (balance < -1 && word < node->right->word) {
+            node->right = rightRotate(node->right);
+            return leftRotate(node);
+        }
+
+        return node;
+    }
+
+    Node* search(Node* node, string word) {
+        if (node == nullptr || node->word == word)
+            return node;
+
+        if (word < node->word)
+            return search(node->left, word);
+
+        return search(node->right, word);
+    }
+
+    void inorder(Node* node) {
+        if (node == nullptr)
+            return;
+
+        inorder(node->left);
+        cout << node->word << " : "
+             << node->meaning << endl;
+        inorder(node->right);
+    }
+
+public:
+    Dictionary() {
+        root = nullptr;
+        rotations = 0;
+    }
+
+    void insertWord(string word, string meaning) {
+        int oldRotations = rotations;
+        root = insert(root, word, meaning);
+
+        cout << "Word inserted/updated successfully.\n";
+        cout << "Rotations in this insertion: "
+             << rotations - oldRotations << endl;
+    }
+
+    void searchWord(string word) {
+        Node* result = search(root, word);
+
+        if (result != nullptr) {
+            cout << "Word: " << result->word << endl;
+            cout << "Meaning: " << result->meaning << endl;
+        } else {
+            cout << "Word not found in dictionary.\n";
+        }
+    }
+
+    void displayDictionary() {
+        if (root == nullptr) {
+            cout << "Dictionary is empty.\n";
             return;
         }
-        if (key < curr->key)
-            curr = curr->left;
-        else
-            curr = curr->right;
-    }
-    cout << "-> Not Found\n";
-}
-int main() {
-    Node *bst = NULL, *avl = NULL;
-    int keys[] = {
-        10, 20, 30, 40, 50,
-        60, 70, 80, 90, 100,
-        110, 120, 130, 140, 150
-    };
 
-    int n = sizeof(keys) / sizeof(keys[0]);
-    for (int i = 0; i < n; i++) {
-        bst = insertBST(bst, keys[i]);
-        avl = insertAVL(avl, keys[i]);
+        cout << "\nDictionary in alphabetical order:\n";
+        inorder(root);
     }
-    cout << "Number of keys: " << n << "\n";
-    cout << "BST Height: " << treeHeight(bst) << "\n";
-    cout << "AVL Height: " << height(avl) << "\n";
-    int key;
-    cout << "\nEnter key to search: ";
-    cin >> key;
-    cout << "\nBST Search Path: ";
-    searchPath(bst, key);
-    cout << "AVL Search Path: ";
-    searchPath(avl, key);
+
+    void displayRotations() {
+        cout << "Total rotations performed: "
+             << rotations << endl;
+    }
+};
+
+int main() {
+    Dictionary dict;
+    int choice;
+    string word, meaning;
+
+    do {
+        cout << "\n===== DICTIONARY USING AVL TREE =====\n";
+        cout << "1. Insert a word\n";
+        cout << "2. Search for a word\n";
+        cout << "3. Display dictionary (Inorder)\n";
+        cout << "4. Count rotations\n";
+        cout << "5. Exit\n";
+        cout << "Enter your choice: ";
+
+        cin >> choice;
+
+        switch (choice) {
+            case 1:
+                cout << "Enter word: ";
+                cin >> word;
+
+                cout << "Enter meaning: ";
+                getline(cin >> ws, meaning);
+
+                dict.insertWord(word, meaning);
+                break;
+
+            case 2:
+                cout << "Enter word to search: ";
+                cin >> word;
+
+                dict.searchWord(word);
+                break;
+
+            case 3:
+                dict.displayDictionary();
+                break;
+
+            case 4:
+                dict.displayRotations();
+                break;
+
+            case 5:
+                cout << "Exiting dictionary application.\n";
+                break;
+
+            default:
+                cout << "Invalid choice. Try again.\n";
+        }
+    } while (choice != 5);
+
     return 0;
 }
